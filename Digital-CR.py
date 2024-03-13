@@ -7,7 +7,7 @@ import re # regular expressions, a great way to interpret strings (once you unde
 
 # Config data (editable)
 DO_NOT_SEND = True # use this to get the code output in console instead of in the message
-DEBUG = True # get debug outputs
+DEBUG = False # get debug outputs
 CONFIG_FILE_LOCATION = 'Digital-CR-Config.ini' # relative path to file
 
 # Helper functions
@@ -16,12 +16,19 @@ def yesno(IN:str):
 def debug(IN):
     if(DEBUG):
         print(IN)
+def TextBeforeChar(IN:str, QUERY:chr):
+    index = IN.find(QUERY)
+    if index != -1:
+        return IN[:index]
+    else:
+        return IN
 
 # Config data (DO NOT MODIFY)
 # We will check if there are even exams, quizzes, assignments or lectures due
-NO_EXAM = False; NO_QUIZ = False; NO_ASSIGNMENT = False; NO_LECTURE = False
+NO_EXAM = False; NO_QUIZ = False; NO_ASSIGNMENT = False; NO_LECTURE = False; NO_ANNOUNCEMENT = False
 # Store values from config file
 Mode = ""; Announcement = "";   Announcement_Priority = ""; Current_Date = ""; Current_Day = ""; LookupVenue = "" 
+Target = ""; QuizLink = ""; AssignmentLink = ""; ResourcesLink = ""
 Lecture_Text = ""
 Assignment_CurrentText="";      Assignment_DateText=""; Assignment_DayText="";  Assignment_TimeText = "";   Assignment_VenueText = ""
 Quiz_CurrentText="";            Quiz_DateText="";       Quiz_DayText="";        Quiz_TimeText = "";         Quiz_VenueText = ""
@@ -48,6 +55,10 @@ try:
     Current_Date            = cp["GENERAL"]["date"]
     Current_Day             = cp["GENERAL"]["day"]
     LookupVenue             = cp["GENERAL"]["lookupvenue"]
+    Target                  = cp["GENERAL"]["target"]
+    ResourcesLink           = cp["GENERAL"]["resourceslink"]
+    AssignmentLink          = cp["GENERAL"]["assignmentlink"]
+    QuizLink                = cp["GENERAL"]["quizlink"]
 
     # Read lecture data
     debug("LOADING LECTURE CONFIG")
@@ -90,24 +101,44 @@ except:
 debug("-------- PARSING DATA --------")
 
 class ScheduleItem:
-    def __init__(self, title, date, day, time, venue):
+    def __init__(self, title, date, day, time, venue, type):
         self.date = date
         self.day = day
         self.title = title
         self.time = time
         self.venue = venue
+        self.type = type
+        self.show()
 
-def TextBeforeChar(IN:str, QUERY:chr):
-    index = IN.find(QUERY)
-    if index != -1:
-        return IN[:index]
-    else:
-        return IN
+    def getType(self):
+        return self.type
+
+    def show(self):
+        if(self.type == "Exam"):
+            print(f"{Exam_Type} for {self.title} will be held on {self.day}, {self.date} ({self.time}) at {self.venue}")
+        if(self.type == "Assignment"):
+            print(f"{self.title} is due at {self.day}, {self.date} ({self.time}). You can submit it at {self.venue}")
+        if(self.type == "Lecture"):
+            print(f"{self.time}: {self.title} ({self.venue})")
+        if(self.type == "Quiz"):
+            print(f"Quiz for {self.title} will be held on {self.day}, {self.date} ({self.time}) at {self.venue}")
+    
+    def getInfo(self):
+        if(self.type == "Exam"):
+            return f"{Exam_Type} for *{self.title}* will be held on _{self.day}, {self.date} ({self.time})_ at {self.venue}."
+        if(self.type == "Assignment"):
+            return f"*{self.title}* is due at _{self.day}, {self.date} ({self.time})_. You can submit it at {self.venue}."
+        if(self.type == "Lecture"):
+            return f"{self.time}: *{self.title}* ({self.venue})."
+        if(self.type == "Quiz"):
+            return f"Quiz for *{self.title}* will be held on _{self.day}, {self.date} ({self.time})_ at {self.venue}."
+
 
 # Parse the lectures text
 def ParseLectures(IN:str):
     if(IN[0:2:] == "NA"):
         debug("NO LECTURES SCHEDULED")
+        NO_LECTURE = True
         return
     # remove whitespace, except space
     whitespace = re.compile(r"[^\S *]") # selects all whitespace except space
@@ -136,11 +167,17 @@ def ParseLectures(IN:str):
             venue_curr = LookupVenue
         debug(f"Venue: {venue_curr}")
 
-        CompleteSchedule.append(ScheduleItem(title_curr, Current_Date, Current_Day, time_curr, venue_curr))
+        CompleteSchedule.append(ScheduleItem(title_curr, Current_Date, Current_Day, time_curr, venue_curr, "Lecture"))
 
-def ParseOther(Titles:str, Dates:str, Days:str, Times:str, Venues:str):
+def ParseOther(Titles:list, Dates:list, Days:list, Times:list, Venues:list, Type:str):
     if(Titles[0:2:] == "NA"):
-        debug("NONE FOUND")
+        debug(f"NONE FOUND: {Type}")
+        if(Type == "Quiz"):
+            NO_QUIZ = True
+        if(Type == "Assignment"):
+            NO_ASSIGNMENT = True
+        if(Type == "Exam"):
+            NO_EXAM = True
         return
     
     # remove whitespace, except space
@@ -167,15 +204,52 @@ def ParseOther(Titles:str, Dates:str, Days:str, Times:str, Venues:str):
     debug(Venues)
 
     for i in range(len(Titles)):
-        CompleteSchedule.append(ScheduleItem(Titles[i], Dates[i], Days[i], Times[i], Venues[i]))
+        CompleteSchedule.append(ScheduleItem(Titles[i], Dates[i], Days[i], Times[i], Venues[i], Type))
 
 debug("Parsing exams")
-ParseOther(Exam_CurrentText, Exam_DateText, Exam_DayText, Exam_TimeText, Exam_VenueText)
+ParseOther(Exam_CurrentText, Exam_DateText, Exam_DayText, Exam_TimeText, Exam_VenueText, "Exam")
+
+debug("Parsing quizzes")
+ParseOther(Quiz_CurrentText, Quiz_DateText, Quiz_DayText, Quiz_TimeText, Quiz_VenueText, "Quiz")
 
 ParseLectures(Lecture_Text)
 
-debug("Parsing quizzes")
-ParseOther(Quiz_CurrentText, Quiz_DateText, Quiz_DayText, Quiz_TimeText, Quiz_VenueText)
-
 debug("Parsing Assignments")
-ParseOther(Assignment_CurrentText, Assignment_DateText, Assignment_DayText, Assignment_TimeText, Assignment_VenueText)
+ParseOther(Assignment_CurrentText, Assignment_DateText, Assignment_DayText, Assignment_TimeText, Assignment_VenueText, "Assignment")
+
+# generate an output string
+Message = ""
+
+Message += f"*Update for {Current_Day[0].capitalize()+Current_Day[1:len(Current_Day):]}, {Current_Date}.* \n"
+Message += f"Class resources can be found at: \n{ResourcesLink} \n"
+
+if not NO_EXAM:
+    Message += "*EXAMS* \n"
+    for i in range(len(CompleteSchedule)):
+        if CompleteSchedule[i].getType() == "Exam":
+            Message += f"{CompleteSchedule[i].getInfo()}\n"
+
+if not NO_QUIZ:
+    Message += "*QUIZZES* \n"
+    Message += f"Quiz resources can be found at: \n{QuizLink}\n"
+    for i in range(len(CompleteSchedule)):
+        if CompleteSchedule[i].getType() == "Quiz":
+            Message += f"{CompleteSchedule[i].getInfo()}\n"
+
+if not NO_LECTURE:
+    Message += "*LECTURE SCHEDULE* \n"
+    for i in range(len(CompleteSchedule)):
+        if CompleteSchedule[i].getType() == "Lecture":
+            Message += f"{CompleteSchedule[i].getInfo()}\n"
+
+if not NO_ASSIGNMENT:
+    Message += "*ASSIGNMENTS* \n"
+    Message += f"Assignment resources can be found at: \n{AssignmentLink}\n"
+    for i in range(len(CompleteSchedule)):
+        if CompleteSchedule[i].getType() == "Assignment":
+            Message += f"{CompleteSchedule[i].getInfo()}\n"
+
+Message += "_This message was generated using the digital CR app by hamza, check it out at: https://github.com/Hamza-Bin-Aamir/Digital-CR/_"
+
+
+print(Message)
