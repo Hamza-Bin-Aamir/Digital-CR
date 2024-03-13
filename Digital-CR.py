@@ -4,6 +4,7 @@ os.environ['DISPLAY'] = ':0' # this is needed for pyautogui, which is used by py
 import pywhatkit # need this to send whatsapp messages 
 import configparser # easily read config files
 import re # regular expressions, a great way to interpret strings (once you understand them lol)
+from datetime import datetime
 
 # Config data (editable)
 DO_NOT_SEND = True # use this to get the code output in console instead of in the message
@@ -217,10 +218,17 @@ ParseLectures(Lecture_Text)
 debug("Parsing Assignments")
 ParseOther(Assignment_CurrentText, Assignment_DateText, Assignment_DayText, Assignment_TimeText, Assignment_VenueText, "Assignment")
 
+if(Announcement[0:2:] == "NA"):
+    NO_ANNOUNCEMENT = True
+
 # generate an output string
 Message = ""
 
 Message += f"*Update for {Current_Day[0].capitalize()+Current_Day[1:len(Current_Day):]}, {Current_Date}.* \n"
+
+if not NO_ANNOUNCEMENT and Announcement_Priority == "Important":
+    Message += f"*ANNOUNCEMENT: {Announcement}*\n"
+
 Message += f"Class resources can be found at: \n{ResourcesLink} \n"
 
 if not NO_EXAM:
@@ -249,7 +257,15 @@ if not NO_ASSIGNMENT:
         if CompleteSchedule[i].getType() == "Assignment":
             Message += f"{CompleteSchedule[i].getInfo()}\n"
 
+if not NO_ANNOUNCEMENT and not Announcement_Priority == "Important":
+    Message += f"ANNOUNCEMENT: {Announcement} \n"
+
 Message += "_This message was generated using the digital CR app by hamza, check it out at: https://github.com/Hamza-Bin-Aamir/Digital-CR/_"
 
 
-print(Message)
+if Mode == "Confirm":
+    print(Message)
+    flag_confirmed = yesno(input("Is this correct? (y/n): "))
+    currentTime = datetime.now()
+    if flag_confirmed:
+        pywhatkit.sendwhatmsg_to_group_instantly(Target, Message)
