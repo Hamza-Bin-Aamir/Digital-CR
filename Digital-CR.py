@@ -4,7 +4,6 @@ os.environ['DISPLAY'] = ':0' # this is needed for pyautogui, which is used by py
 import pywhatkit # need this to send whatsapp messages 
 import configparser # easily read config files
 import re # regular expressions, a great way to interpret strings (once you understand them lol)
-from datetime import datetime
 
 # Config data (editable)
 DO_NOT_SEND = True # use this to get the code output in console instead of in the message
@@ -109,7 +108,6 @@ class ScheduleItem:
         self.time = time
         self.venue = venue
         self.type = type
-        self.show()
 
     def getType(self):
         return self.type
@@ -174,6 +172,7 @@ def ParseOther(Titles:list, Dates:list, Days:list, Times:list, Venues:list, Type
     if(Titles[0:2:] == "NA"):
         debug(f"NONE FOUND: {Type}")
         if(Type == "Quiz"):
+            debug("NOQUIZ")
             NO_QUIZ = True
         if(Type == "Assignment"):
             NO_ASSIGNMENT = True
@@ -220,6 +219,14 @@ ParseOther(Assignment_CurrentText, Assignment_DateText, Assignment_DayText, Assi
 
 if(Announcement[0:2:] == "NA"):
     NO_ANNOUNCEMENT = True
+if(Assignment_CurrentText[0:2:] == "NA"):
+    NO_ASSIGNMENT = True
+if(Quiz_CurrentText[0:2:] == "NA"):
+    NO_QUIZ = True
+if(Lecture_Text[0:2:] == "NA"):
+    NO_LECTURE = True
+if(Exam_CurrentText[0:2:] == "NA"):
+    NO_EXAM = True
 
 # generate an output string
 Message = ""
@@ -227,45 +234,48 @@ Message = ""
 Message += f"*Update for {Current_Day[0].capitalize()+Current_Day[1:len(Current_Day):]}, {Current_Date}.* \n"
 
 if not NO_ANNOUNCEMENT and Announcement_Priority == "Important":
-    Message += f"*ANNOUNCEMENT: {Announcement}*\n"
+    Message += f"*\nANNOUNCEMENT: {Announcement}*\n"    
 
 Message += f"Class resources can be found at: \n{ResourcesLink} \n"
 
 if not NO_EXAM:
-    Message += "*EXAMS* \n"
+    Message += "\n\n*EXAMS* \n"
     for i in range(len(CompleteSchedule)):
         if CompleteSchedule[i].getType() == "Exam":
             Message += f"{CompleteSchedule[i].getInfo()}\n"
-
+            
 if not NO_QUIZ:
-    Message += "*QUIZZES* \n"
+    Message += "\n\n*QUIZZES* \n"
     Message += f"Quiz resources can be found at: \n{QuizLink}\n"
     for i in range(len(CompleteSchedule)):
         if CompleteSchedule[i].getType() == "Quiz":
             Message += f"{CompleteSchedule[i].getInfo()}\n"
 
 if not NO_LECTURE:
-    Message += "*LECTURE SCHEDULE* \n"
+    Message += "\n\n*LECTURE SCHEDULE* \n"
     for i in range(len(CompleteSchedule)):
         if CompleteSchedule[i].getType() == "Lecture":
             Message += f"{CompleteSchedule[i].getInfo()}\n"
 
 if not NO_ASSIGNMENT:
-    Message += "*ASSIGNMENTS* \n"
+    Message += "\n\n*ASSIGNMENTS* \n"
     Message += f"Assignment resources can be found at: \n{AssignmentLink}\n"
     for i in range(len(CompleteSchedule)):
         if CompleteSchedule[i].getType() == "Assignment":
             Message += f"{CompleteSchedule[i].getInfo()}\n"
 
 if not NO_ANNOUNCEMENT and not Announcement_Priority == "Important":
-    Message += f"ANNOUNCEMENT: {Announcement} \n"
+    Message += f"\nANNOUNCEMENT: {Announcement} \n"
 
-Message += "_This message was generated using the digital CR app by hamza, check it out at: https://github.com/Hamza-Bin-Aamir/Digital-CR/_"
+Message += "\n\n\n\n_This message was generated using the digital CR app by hamza, check it out at: https://github.com/Hamza-Bin-Aamir/Digital-CR/_"
 
 
 if Mode == "Confirm":
     print(Message)
     flag_confirmed = yesno(input("Is this correct? (y/n): "))
-    currentTime = datetime.now()
     if flag_confirmed:
         pywhatkit.sendwhatmsg_to_group_instantly(Target, Message)
+if Mode == "Print":
+    print(Message)
+if Mode == "YOLO":
+    pywhatkit.sendwhatmsg_to_group_instantly(Target, Message)
